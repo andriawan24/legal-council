@@ -2,9 +2,9 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import type { AgentMessage, LegalOpinionData } from './legal-council-app';
 import { AgentAvatar } from './agent-avatar';
 import { Scale, FileText, RotateCcw, Download, CheckCircle, AlertCircle } from 'lucide-react';
+import { AgentMessage, LegalOpinionData } from '@/types';
 
 interface LegalOpinionProps {
   opinion: LegalOpinionData;

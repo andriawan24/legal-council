@@ -6,9 +6,10 @@ import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import type { AgentMessage, LegalOpinionData } from './legal-council-app';
 import { AgentAvatar } from './agent-avatar';
 import { Loader2, Send, Gavel, HelpCircle } from 'lucide-react';
+import type { AgentMessage, LegalOpinionData } from '@/types';
+import { MessageBubble } from './message-bubble';
 
 interface CouncilDebateProps {
   caseFacts: string;
@@ -79,12 +80,18 @@ const getAgentResponse = (
   const askingAboutLaw =
     lastUserMessage.toLowerCase().includes('legal basis') ||
     lastUserMessage.toLowerCase().includes('article');
-  const askingForClarification =
-    lastUserMessage.toLowerCase().includes('clarif') ||
-    lastUserMessage.toLowerCase().includes('explain');
 
   if (isNarcotics) {
-    const responses = {
+    const responses: Record<
+      'strict' | 'humanist' | 'historian',
+      {
+        initial: { content: string; citations: string[] };
+        followUp: { content: string; citations: string[] };
+        onLaw?: { content: string; citations: string[] };
+        onRehab?: { content: string; citations: string[] };
+        onPrecedent?: { content: string; citations: string[] };
+      }
+    > = {
       strict: {
         initial: {
           content: `Thank you, Your Honor.\n\nBased on Narcotics Law No. 35 of 2009 Article 112 paragraph (1), possession of Category I narcotics weighing 5 grams constitutes a criminal offense punishable by a minimum of 4 years imprisonment.\n\nThe elements of the crime are fulfilled: there is evidence, there is possession, and the type of narcotics falls under Category I. The claim of "personal use" does not negate the element of illegal possession.`,
@@ -141,20 +148,26 @@ const getAgentResponse = (
     if (isFirstResponse || isDirectlyAsked) {
       return agentData.initial;
     }
-    if (askingAboutLaw && agent === 'strict') {
+    if (askingAboutLaw && agent === 'strict' && agentData.onLaw) {
       return agentData.onLaw;
     }
-    if (askingAboutRehab && agent === 'humanist') {
+    if (askingAboutRehab && agent === 'humanist' && agentData.onRehab) {
       return agentData.onRehab;
     }
-    if (askingAboutPrecedent && agent === 'historian') {
+    if (askingAboutPrecedent && agent === 'historian' && agentData.onPrecedent) {
       return agentData.onPrecedent;
     }
     return agentData.followUp;
   }
 
   // Default corruption case responses
-  const corruptionResponses = {
+  const corruptionResponses: Record<
+    'strict' | 'humanist' | 'historian',
+    {
+      initial: { content: string; citations: string[] };
+      followUp: { content: string; citations: string[] };
+    }
+  > = {
     strict: {
       initial: {
         content: `Thank you, Your Honor.\n\nBased on Anti-Corruption Law No. 31 of 1999 jo. Law No. 20 of 2001, the defendant's actions fulfill the elements of corruption as stipulated in Article 2 or Article 3.\n\nState losses amounting to IDR 500 million have been calculated by BPKP. The defendant as Village Head is a state official who must uphold public trust.`,
@@ -194,7 +207,7 @@ const getAgentResponse = (
   return agentData.followUp;
 };
 
-const getDummyOpinion = (caseFacts: string, messages: AgentMessage[]): LegalOpinionData => {
+const getDummyOpinion = (caseFacts: string): LegalOpinionData => {
   const isNarcotics =
     caseFacts.toLowerCase().includes('sabu') ||
     caseFacts.toLowerCase().includes('methamphetamine') ||
@@ -262,41 +275,26 @@ const getDummyOpinion = (caseFacts: string, messages: AgentMessage[]): LegalOpin
 };
 
 export function CouncilDebate({ caseFacts, onComplete }: CouncilDebateProps) {
-  const [messages, setMessages] = useState<AgentMessage[]>([]);
+  const [messages, setMessages] = useState<AgentMessage[]>([
+    {
+      id: crypto.randomUUID(),
+      agent: 'system',
+      agentName: 'System',
+      content: `Welcome to the Virtual Deliberation Room, Your Honor.\n\n**Case Facts:**\n${caseFacts}\n\nYou are the Presiding Judge leading this deliberation. Please begin by asking questions or requesting opinions from the panel members.`,
+    },
+  ]);
   const [userInput, setUserInput] = useState('');
   const [isAgentTyping, setIsAgentTyping] = useState(false);
   const [currentTypingAgent, setCurrentTypingAgent] = useState<
     'strict' | 'humanist' | 'historian' | null
   >(null);
-  const [streamingContent, setStreamingContent] = useState('');
   const [isGeneratingOpinion, setIsGeneratingOpinion] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, streamingContent]);
-
-  useEffect(() => {
-    const initialMessage: AgentMessage = {
-      id: crypto.randomUUID(),
-      agent: 'system',
-      agentName: 'System',
-      content: `Welcome to the Virtual Deliberation Room, Your Honor.\n\n**Case Facts:**\n${caseFacts}\n\nYou are the Presiding Judge leading this deliberation. Please begin by asking questions or requesting opinions from the panel members.`,
-    };
-    setMessages([initialMessage]);
-  }, [caseFacts]);
-
-  const simulateTyping = async (content: string): Promise<void> => {
-    const words = content.split(' ');
-    let displayed = '';
-
-    for (let i = 0; i < words.length; i++) {
-      displayed += (i > 0 ? ' ' : '') + words[i];
-      setStreamingContent(displayed);
-      await new Promise((resolve) => setTimeout(resolve, 25 + Math.random() * 15));
-    }
-  };
+  }, [messages]);
 
   const getRespondingAgent = (userMessage: string): 'strict' | 'humanist' | 'historian' => {
     const msg = userMessage.toLowerCase();
@@ -345,17 +343,14 @@ export function CouncilDebate({ caseFacts, onComplete }: CouncilDebateProps) {
 
     setIsAgentTyping(true);
     setCurrentTypingAgent(respondingAgent);
-    setStreamingContent('');
 
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 1500));
 
     const response = getAgentResponse(respondingAgent, {
       caseFacts,
       lastUserMessage: messageText,
       messageHistory: updatedMessages,
     });
-
-    await simulateTyping(response.content);
 
     const agentMessage: AgentMessage = {
       id: crypto.randomUUID(),
@@ -368,7 +363,6 @@ export function CouncilDebate({ caseFacts, onComplete }: CouncilDebateProps) {
     setMessages([...updatedMessages, agentMessage]);
     setIsAgentTyping(false);
     setCurrentTypingAgent(null);
-    setStreamingContent('');
 
     inputRef.current?.focus();
   };
@@ -380,7 +374,7 @@ export function CouncilDebate({ caseFacts, onComplete }: CouncilDebateProps) {
   const handleGenerateOpinion = async () => {
     setIsGeneratingOpinion(true);
     await new Promise((resolve) => setTimeout(resolve, 2000));
-    const opinion = getDummyOpinion(caseFacts, messages);
+    const opinion = getDummyOpinion(caseFacts);
     onComplete(messages, opinion);
   };
 
@@ -393,7 +387,6 @@ export function CouncilDebate({ caseFacts, onComplete }: CouncilDebateProps) {
 
   return (
     <div className='space-y-4'>
-      {/* Council Members Bar */}
       <div className='flex items-center justify-center gap-6 py-3 px-4 bg-secondary rounded-lg'>
         <div className='flex items-center gap-2'>
           <AgentAvatar agent='user' size='sm' />
@@ -408,32 +401,27 @@ export function CouncilDebate({ caseFacts, onComplete }: CouncilDebateProps) {
         ))}
       </div>
 
-      {/* Chat Area */}
       <Card className='bg-card border-border'>
         <CardContent className='p-0'>
-          {/* Messages */}
-          <div className='h-[450px] overflow-y-auto p-4 space-y-4'>
+          <div className='h-[450px] overflow-y-auto space-y-4'>
             {messages.map((message) => (
               <MessageBubble key={message.id} message={message} />
             ))}
 
-            {/* Typing indicator */}
             {isAgentTyping && currentTypingAgent && (
-              <div className='flex gap-3'>
+              <div className='flex gap-3 mx-6'>
                 <AgentAvatar agent={currentTypingAgent} size='md' />
                 <div className='flex-1 max-w-[80%]'>
                   <span className='text-xs text-muted-foreground mb-1 block'>
                     {AGENTS[currentTypingAgent].name}
                   </span>
                   <div className='bg-secondary rounded-lg rounded-tl-none p-3'>
-                    <p className='text-sm text-foreground whitespace-pre-wrap'>
-                      {streamingContent || (
-                        <span className='flex items-center gap-1 text-muted-foreground'>
-                          <Loader2 className='w-3 h-3 animate-spin' />
-                          Thinking...
-                        </span>
-                      )}
-                    </p>
+                    <div className='text-sm text-foreground'>
+                      <span className='flex items-center gap-1 text-muted-foreground'>
+                        <Loader2 className='w-3 h-3 animate-spin' />
+                        Thinking...
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -450,7 +438,7 @@ export function CouncilDebate({ caseFacts, onComplete }: CouncilDebateProps) {
                   key={index}
                   variant='outline'
                   size='sm'
-                  className='text-xs bg-transparent border-border text-muted-foreground hover:text-foreground hover:bg-secondary'
+                  className='text-xs bg-transparent border-border text-muted-foreground hover:text-foreground hover:bg-secondary cursor-pointer'
                   onClick={() => handleQuickAction(action.prompt)}
                   disabled={isAgentTyping}
                 >
@@ -475,7 +463,7 @@ export function CouncilDebate({ caseFacts, onComplete }: CouncilDebateProps) {
                 <Button
                   onClick={() => handleUserSubmit()}
                   disabled={!userInput.trim() || isAgentTyping}
-                  className='bg-primary hover:bg-primary/90 text-primary-foreground h-full'
+                  className='bg-primary hover:bg-primary/90 text-primary-foreground h-full cursor-pointer'
                 >
                   <Send className='w-4 h-4' />
                 </Button>
@@ -487,7 +475,7 @@ export function CouncilDebate({ caseFacts, onComplete }: CouncilDebateProps) {
               <Button
                 onClick={handleGenerateOpinion}
                 disabled={messages.length < 3 || isAgentTyping || isGeneratingOpinion}
-                className='bg-accent hover:bg-accent/90 text-accent-foreground'
+                className='bg-accent hover:bg-accent/90 text-accent-foreground cursor-pointer'
               >
                 {isGeneratingOpinion ? (
                   <>
@@ -505,45 +493,6 @@ export function CouncilDebate({ caseFacts, onComplete }: CouncilDebateProps) {
           </div>
         </CardContent>
       </Card>
-    </div>
-  );
-}
-
-function MessageBubble({ message }: { message: AgentMessage }) {
-  const isUser = message.agent === 'user';
-  const isSystem = message.agent === 'system';
-
-  if (isSystem) {
-    return (
-      <div className='bg-secondary/50 rounded-lg p-4 border border-border'>
-        <p className='text-sm text-foreground whitespace-pre-wrap'>{message.content}</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : ''}`}>
-      <AgentAvatar agent={message.agent} size='md' />
-      <div className={`flex-1 max-w-[80%] ${isUser ? 'flex flex-col items-end' : ''}`}>
-        <span className='text-xs text-muted-foreground mb-1 block'>{message.agentName}</span>
-        <div
-          className={`rounded-lg p-3 ${
-            isUser
-              ? 'bg-primary text-primary-foreground rounded-tr-none'
-              : 'bg-secondary rounded-tl-none'
-          }`}
-        >
-          <p className={`text-sm whitespace-pre-wrap ${isUser ? '' : 'text-foreground'}`}>
-            {message.content}
-          </p>
-          {message.citations && message.citations.length > 0 && (
-            <div className='mt-2 pt-2 border-t border-border/50'>
-              <span className='text-xs text-muted-foreground'>References: </span>
-              <span className='text-xs text-primary'>{message.citations.join(', ')}</span>
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   );
 }
