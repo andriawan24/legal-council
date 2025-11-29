@@ -1,0 +1,26 @@
+# Core dependencies
+functions-framework>=3.0.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# Google Cloud
+google-cloud-storage>=2.0.0
+google-cloud-aiplatform>=1.38.0
+vertexai>=1.38.0
+
+# PDF processing
+pypdf>=3.0.0
+
+# LLM integration
+litellm>=1.0.0
+
+# Database (Cloud SQL with pgvector)
+asyncpg>=0.29.0
+pgvector>=0.2.0
+
+# Async utilities
+aiofiles>=23.0.0
+httpx>=0.25.0
+
+# Progress bars (optional, for local testing)
+tqdm>=4.0.0

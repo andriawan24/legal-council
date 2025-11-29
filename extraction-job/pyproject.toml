@@ -1,0 +1,32 @@
+[project]
+name = "legal-council-extraction-job"
+version = "0.1.0"
+description = "Legal Council Extraction Job - PDF extraction pipeline with LLM and vector embeddings"
+requires-python = ">=3.11"
+dependencies = [
+    # Cloud Functions framework
+    "functions-framework>=3.4.0",
+    # Google Cloud
+    "google-cloud-storage>=2.14.0",
+    "google-cloud-aiplatform>=1.46.0",
+    "vertexai>=1.46.0",
+    # PDF processing
+    "pypdf>=3.17.0",
+    # Configuration
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    # LLM integration
+    "litellm>=1.10.0",
+    # Database (Cloud SQL with pgvector)
+    "asyncpg>=0.29.0",
+    "pgvector>=0.2.0",
+    # Async utilities
+    "aiofiles>=23.2.0",
+    "httpx>=0.25.0",
+    # Progress bars (for local testing)
+    "tqdm>=4.66.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

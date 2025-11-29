@@ -1,0 +1,10 @@
+[project]
+name = "legal-council-api"
+version = "0.1.0"
+description = "Legal Council API"
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi==0.109.0",
+    "uvicorn==0.27.0.post1",
+    "google-cloud-aiplatform==1.46.0",
+]
